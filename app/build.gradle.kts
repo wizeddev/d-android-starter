@@ -4,15 +4,26 @@ plugins {
 }
 
 android {
-    namespace = "com.despia.android.demo"
+    val appId = project.findProperty("APP_ID") as? String ?: "com.despia.android.demo"
+    namespace = "com.despia.android.demo" // Code namespace stays original
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
         }
     }
 
+    signingConfigs {
+        create("release_config") {
+            val ksFile = project.findProperty("KS_FILE")?.toString() ?: "release.jks"
+            storeFile = file(ksFile)
+            storePassword = project.findProperty("KS_PASSWORD")?.toString()
+            keyAlias = project.findProperty("KEY_ALIAS")?.toString()
+            keyPassword = project.findProperty("KEY_PASSWORD")?.toString()
+        }
+    }
+
     defaultConfig {
-        applicationId = "com.despia.android.demo"
+        applicationId = appId
         minSdk = 30
         targetSdk = 36
         versionCode = 1
@@ -23,6 +34,7 @@ android {
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release_config")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
