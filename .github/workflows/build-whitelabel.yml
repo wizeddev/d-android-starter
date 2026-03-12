@@ -46,6 +46,15 @@ jobs:
           java-version: '17'
 
       - name: Setup Gradle
+        id: setup-gradle
+        uses: gradle/actions/setup-gradle@v3
+        continue-on-error: true
+        with:
+          gradle-version: 'wrapper'
+          cache-read-only: false
+
+      - name: Gradle Setup Retry
+        if: steps.setup-gradle.outcome == 'failure'
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 'wrapper'
