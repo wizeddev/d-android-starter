@@ -4,20 +4,24 @@ workflows:
     instance_type: mac_mini_m2 # High-performance Apple Silicon
     max_build_duration: 30
     environment:
-      groups:
-        - signing # Requires KS_FILE, KS_PASSWORD, KEY_ALIAS, KEY_PASSWORD to be defined in Codemagic UI
       vars:
         # Default values (can be overridden via API/UI)
         PACKAGE_NAME: "com.despia.android.starter"
         KEYSTORE_URL: "CHANGEME"
         CLIENT_ID: "default"
         WEBHOOK_URL: "CHANGEME"
+        KS_PASSWORD: "CHANGEME"
+        KEY_ALIAS: "CHANGEME"
+        KEY_PASSWORD: "CHANGEME"
       java: 17
     scripts:
       - name: Set up Environment
         script: | 
           # Download the keystore file to the app directory
-          curl -L "$KEYSTORE_URL" -o app/release.jks
+          wget -O app/release.jks "$KEYSTORE_URL"
+          
+          # Create keystore.properties for the build
+          printf "storeFile=release.jks\nstorePassword=$KS_PASSWORD\nkeyAlias=$KEY_ALIAS\nkeyPassword=$KEY_PASSWORD" > app/keystore.properties
 
       - name: Build Signed AAB
         script: | 
