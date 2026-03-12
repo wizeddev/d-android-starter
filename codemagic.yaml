@@ -1,0 +1,72 @@
+workflows:
+  whitelabel-build:
+    name: Dynamic White-label Build
+    instance_type: mac_mini_m2 # High-performance Apple Silicon
+    max_build_duration: 30
+    environment:
+      groups:
+        - signing # Requires KS_FILE, KS_PASSWORD, KEY_ALIAS, KEY_PASSWORD to be defined in Codemagic UI
+      vars:
+        # Default values (can be overridden via API/UI)
+        PACKAGE_NAME: "com.despia.android.starter"
+        KEYSTORE_URL: "CHANGEME"
+        CLIENT_ID: "default"
+        WEBHOOK_URL: "CHANGEME"
+      java: 17
+    scripts:
+      - name: Set up Environment
+        script: | 
+          # Download the keystore file to the app directory
+          curl -L "$KEYSTORE_URL" -o app/release.jks
+
+      - name: Build Signed AAB
+        script: | 
+          # Enable Gradle parallel and configuration cache via environment
+          export GRADLE_OPTS="-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configuration-cache=true"
+          
+          gradle :app:bundleRelease \
+            -PAPP_ID="$PACKAGE_NAME" \
+            -PKS_FILE="release.jks" \
+            -PKS_PASSWORD="$KS_PASSWORD" \
+            -PKEY_ALIAS="$KEY_ALIAS" \
+            -PKEY_PASSWORD="$KEY_PASSWORD"
+
+    artifacts:
+      - app/build/outputs/bundle/release/*.aab
+
+    publishing:
+      scripts:
+        - name: Send Build Webhook
+          script: |
+            CREATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            EXPIRE_AT=$(date -u -v+1d +"%Y-%m-%dT%H:%M:%SZ")
+            
+            # Codemagic provides ARTIFACT_URL in CM_ARTIFACT_LINKS (JSON array)
+            # We extract the first artifact's URL using a simple grep/sed for speed
+            ARTIFACT_TYPE=".aab" 
+            URL=$(echo $CM_ARTIFACT_LINKS | jq -r '.[] | select(.name | endswith("'"$ARTIFACT_TYPE"'")) | .url')
+            
+            if [ "$FCI_BUILD_STEP_STATUS" == "success" ]; then
+              STATUS="true"
+              MESSAGE="Success"
+            else
+              STATUS="false"
+              MESSAGE="Failed: Build error check Codemagic logs"
+              URL=""
+            fi
+
+            curl -X POST "$WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d @- <<EOF
+            {
+              "status": $STATUS,
+              "message": "$MESSAGE",
+              "client_id": "$CLIENT_ID",
+              "build_id": "$FCI_BUILD_ID",
+              "artifeact_url": "$URL",
+              "created_at": "$CREATED_AT",
+              "expire_at": "$EXPIRE_AT"
+            }
+            EOF
+        - name: Done
+          script: echo "Build Complete"
