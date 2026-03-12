@@ -34,7 +34,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest # Uses Apple Silicon (M1/M2) for faster compilation
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -60,9 +60,8 @@ jobs:
       - name: Build Signed AAB
         id: build-aab
         run: |
-          # Use 'gradle' instead of './gradlew' to leverage the pre-installed version from the Tool Cache
+          # Leverage the Configuration Cache and Parallel execution on Apple Silicon
           gradle :app:bundleRelease \
-            --no-daemon \
             --build-cache \
             --configuration-cache \
             --parallel \
